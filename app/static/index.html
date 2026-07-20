@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Home Sensors</title>
+<link rel="stylesheet" href="/static/style.css">
+<script src="/static/chart.umd.js"></script>
+</head>
+<body>
+<header>
+  <h1>Home Sensors</h1>
+  <div id="source-chips" class="chips"></div>
+  <div class="range-picker" id="range-picker" role="group" aria-label="Time range">
+    <button data-hours="24" class="active">24h</button>
+    <button data-hours="168">7d</button>
+    <button data-hours="720">30d</button>
+    <button data-hours="2160">90d</button>
+  </div>
+  <button id="import-btn" class="import-btn" title="Import a Govee CSV export">Import CSV</button>
+  <input type="file" id="import-file" accept=".csv,text/csv" hidden>
+</header>
+<div id="import-panel" class="import-panel" hidden></div>
+<main>
+  <section id="setup-note" class="card setup-note" hidden></section>
+  <section id="cards" class="cards"></section>
+  <section id="energy" class="card chart-card" hidden>
+    <div class="energy-head">
+      <h2>Energy usage</h2>
+      <select id="energy-device" aria-label="Device"></select>
+      <div class="range-picker" id="energy-bucket" role="group" aria-label="Granularity">
+        <button data-bucket="hour">Hourly</button>
+        <button data-bucket="day" class="active">Daily</button>
+        <button data-bucket="week">Weekly</button>
+        <button data-bucket="month">Monthly</button>
+      </div>
+      <span id="energy-total" class="energy-total"></span>
+    </div>
+    <div class="chart-wrap"><canvas id="energy-canvas" role="img" aria-label="Energy usage"></canvas></div>
+    <div id="energy-table"></div>
+  </section>
+  <section id="charts"></section>
+</main>
+<footer>
+  <span id="footer-note"></span>
+</footer>
+<script src="/static/app.js"></script>
+</body>
+</html>

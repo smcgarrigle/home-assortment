@@ -169,6 +169,28 @@ footer { padding: 12px 24px 24px; color: var(--text-muted); font-size: 12px; }
 .toggle.on { background: var(--series-1); border-color: var(--series-1); color: #fff; }
 .toggle:disabled { opacity: 0.5; cursor: default; }
 
+.power-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 10px;
+  padding: 4px 12px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 500;
+  border: 1px solid var(--border);
+  background: var(--surface-1);
+  color: var(--text-muted);
+}
+.power-status.on { color: var(--success-text); }
+.power-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--text-muted);
+}
+.power-status.on .power-dot { background: var(--status-good); }
+
 .chart-card { margin-bottom: 16px; }
 .energy-head { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 10px; }
 .energy-head h2 { margin: 0; }
@@ -183,6 +205,7 @@ footer { padding: 12px 24px 24px; color: var(--text-muted); font-size: 12px; }
 }
 .energy-total { margin-left: auto; color: var(--text-secondary); font-size: 13px; }
 .energy-total strong { color: var(--text-primary); font-size: 16px; }
+.energy-total .rate-note { display: block; color: var(--text-muted); font-size: 11px; margin-top: 2px; }
 .chart-card h2 { font-size: 14px; margin: 0 0 10px; color: var(--text-secondary); font-weight: 600; }
 .chart-wrap { position: relative; height: 260px; }
 details.table-view { margin-top: 8px; font-size: 12px; color: var(--text-secondary); }

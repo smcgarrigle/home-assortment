@@ -157,23 +157,10 @@ function deviceCard(dev) {
 
   if (dev.source === "govee" && "powerSwitch" in latest) {
     const on = latest.powerSwitch.value >= 1;
-    const btn = document.createElement("button");
-    btn.className = "toggle" + (on ? " on" : "");
-    btn.textContent = on ? "On" : "Off";
-    btn.onclick = async () => {
-      btn.disabled = true;
-      try {
-        await fetch(`/api/govee/${dev.id}/power`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ on: !on }),
-        });
-        setTimeout(refresh, 1500);
-      } finally {
-        btn.disabled = false;
-      }
-    };
-    card.append(btn);
+    const pill = document.createElement("span");
+    pill.className = "power-status" + (on ? " on" : " off");
+    pill.innerHTML = `<span class="power-dot"></span>${on ? "On" : "Off"}`;
+    card.append(pill);
   }
 
   const age = document.createElement("div");
@@ -348,7 +335,9 @@ async function renderEnergy() {
   const totalEl = $("#energy-total");
   const unitWord = { hour: "hourly", day: "daily", week: "weekly", month: "monthly" }[energyBucket];
   totalEl.innerHTML = body.data.length
-    ? `Total <strong>${body.total_kwh.toFixed(energyBucket === "hour" ? 3 : 1)} kWh</strong> (${unitWord}, shown span)`
+    ? `Total <strong>${body.total_kwh.toFixed(energyBucket === "hour" ? 3 : 1)} kWh</strong> · ` +
+      `<strong>$${body.total_cost.toFixed(2)}</strong> (${unitWord}, shown span) ` +
+      `<small class="rate-note">peak $${body.peak_rate.toFixed(5)}/kWh · off-peak $${body.offpeak_rate.toFixed(5)}/kWh</small>`
     : "no energy data yet";
 
   if (energyChart) { energyChart.destroy(); energyChart = null; }
@@ -363,6 +352,7 @@ async function renderEnergy() {
       datasets: [{
         label: device.name,
         data: body.data.map(([, v]) => v),
+        costs: body.data.map(([, , c]) => c),
         backgroundColor: color,
         borderRadius: 4,
         maxBarThickness: 26,
@@ -377,7 +367,10 @@ async function renderEnergy() {
       plugins: {
         legend: { display: false },
         tooltip: {
-          callbacks: { label: (item) => ` ${item.parsed.y.toFixed(3)} kWh` },
+          callbacks: {
+            label: (item) =>
+              ` ${item.parsed.y.toFixed(3)} kWh · $${item.dataset.costs[item.dataIndex].toFixed(2)}`,
+          },
         },
       },
       scales: {
@@ -402,9 +395,9 @@ async function renderEnergy() {
   details.className = "table-view";
   details.innerHTML = "<summary>Data table (latest 12 buckets)</summary>";
   const table = document.createElement("table");
-  table.innerHTML = "<tr><th>Period</th><th>kWh</th></tr>" +
+  table.innerHTML = "<tr><th>Period</th><th>kWh</th><th>Cost</th></tr>" +
     body.data.slice(-12).reverse()
-      .map(([ts, v]) => `<tr><td>${energyLabel(ts)}</td><td>${v.toFixed(3)}</td></tr>`)
+      .map(([ts, v, c]) => `<tr><td>${energyLabel(ts)}</td><td>${v.toFixed(3)}</td><td>$${c.toFixed(2)}</td></tr>`)
       .join("");
   details.append(table);
   tbl.append(details);

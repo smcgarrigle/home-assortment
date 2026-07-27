@@ -50,8 +50,8 @@ want it to survive reboots.)
   restarts are safe.
 - **Govee**: refreshes the device list every 10 min and polls each device's
   state every 2 min (well under the 30 req/min limits) — online, power,
-  brightness, and any other numeric capability. The dashboard's On/Off button
-  controls lights/plugs via the same API.
+  brightness, and any other numeric capability. The dashboard shows an
+  on/off status indicator for each device.
 - **Govee live energy (optional)**: with `GOVEE_EMAIL`/`GOVEE_PASSWORD` set,
   the app connects to Govee's private AWS IoT channel (the one the phone app
   uses — unofficial, may break) and polls watts/volts/amps from
@@ -60,6 +60,12 @@ want it to survive reboots.)
   then `python -m app.govee_login <code>` to cache the account token
   (`data/govee_account.json`). The official developer API does not expose this
   data at all.
+- **Energy cost**: the energy chart's kWh totals are also costed out at
+  peak/off-peak electricity rates (`PEAK_RATE_PER_KWH`, `OFFPEAK_RATE_PER_KWH`
+  in `.env`). Peak is weekdays
+  `PEAK_START_HOUR`–`PEAK_END_HOUR` (default 4pm–9pm local time); everything
+  else is off-peak. Cost is computed per hour and rolled up, so a daily or
+  weekly bucket that spans both rates still totals correctly.
 - **Storage**: SQLite at `data/sensors.db`, one row per
   (device, metric, timestamp). Chart queries bucket-average to ≤ ~600 points.
 
@@ -71,13 +77,13 @@ want it to survive reboots.)
 | `app/govee_iot.py`, `app/govee_login.py` | unofficial Govee IoT channel for plug energy data |
 | `app/collector.py` | background polling loops |
 | `app/db.py` | SQLite schema and queries |
-| `app/web.py` | FastAPI routes (`/api/devices`, `/api/history`, `/api/status`, power control) |
+| `app/web.py` | FastAPI routes (`/api/devices`, `/api/history`, `/api/energy`, `/api/status`) |
 | `app/static/` | dashboard (vendored Chart.js, no CDN) |
 
 ## API endpoints used
 
 - Govee: `https://openapi.api.govee.com/router/api/v1/…` with the
-  `Govee-API-Key` header (`user/devices`, `device/state`, `device/control`).
+  `Govee-API-Key` header (`user/devices`, `device/state`).
 - Qingping: OAuth2 client-credentials token from
   `https://oauth.cleargrass.com/oauth2/token`, then
   `https://apis.cleargrass.com/v1/apis/devices` (latest data) and

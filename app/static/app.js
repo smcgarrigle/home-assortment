@@ -92,8 +92,7 @@ function renderStatus(status) {
     note.innerHTML =
       `<strong>Setup needed:</strong> no API credentials for ` +
       `<strong>${unconfigured.join("</strong> and <strong>")}</strong>. ` +
-      `Copy <code>.env.example</code> to <code>.env</code>, add your keys, and restart. ` +
-      `See the README for how to request them.`;
+      `<a href="/setup" style="color:var(--series-1);font-weight:500;">Configure →</a>`;
   } else {
     note.hidden = true;
   }

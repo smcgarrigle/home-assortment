@@ -1,0 +1,198 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Settings — Home Sensors</title>
+<link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+<header>
+  <a href="/" class="back-link" title="Back to dashboard">←</a>
+  <h1>Settings</h1>
+</header>
+<main class="settings-main">
+
+  <!-- Restart banner (hidden by default) -->
+  <div id="restart-banner" class="card restart-banner" hidden>
+    <strong>Restart required</strong> — credential changes take effect after restarting the app.
+    <code class="restart-cmd">pkill -f "python main.py" && nohup .venv/bin/python main.py >> data/server.log 2>&1 &</code>
+  </div>
+
+  <!-- Govee Cloud API -->
+  <section class="card settings-card" id="govee-card">
+    <div class="settings-header">
+      <h2>Govee Cloud API</h2>
+      <span class="status-badge" id="govee-badge">…</span>
+    </div>
+    <div class="instructions">
+      <p>How to get your API key:</p>
+      <ol>
+        <li>Open the <strong>Govee Home</strong> app on your phone</li>
+        <li>Go to <strong>My Profile → Settings</strong></li>
+        <li>Tap <strong>"Apply for API Key"</strong></li>
+        <li>Fill in the short form — the key arrives by email, usually within minutes</li>
+      </ol>
+    </div>
+    <div class="field-group">
+      <label for="govee-api-key">API Key</label>
+      <div class="input-row">
+        <input type="password" id="govee-api-key" placeholder="e.g. 00000000-1111-2222-3333-444444444444" autocomplete="off" spellcheck="false">
+        <button type="button" class="eye-btn" data-target="govee-api-key" title="Show/hide">👁</button>
+      </div>
+    </div>
+    <div class="button-row">
+      <button class="btn btn-secondary" id="govee-test">Test Connection</button>
+      <button class="btn btn-primary" id="govee-save">Save</button>
+      <span class="action-result" id="govee-result"></span>
+    </div>
+  </section>
+
+  <!-- Qingping -->
+  <section class="card settings-card" id="qingping-card">
+    <div class="settings-header">
+      <h2>Qingping</h2>
+      <span class="status-badge" id="qingping-badge">…</span>
+    </div>
+    <div class="instructions">
+      <p>How to get your credentials:</p>
+      <ol>
+        <li>Register at <a href="https://developer.qingping.co" target="_blank" rel="noopener">developer.qingping.co</a> (same account as your Qingping+ app)</li>
+        <li>Click your email in the top-right corner</li>
+        <li>Go to <strong>"Access Management"</strong></li>
+        <li>Copy your <strong>App Key</strong> and <strong>App Secret</strong></li>
+      </ol>
+      <p class="note">ℹ Only devices bound in the Qingping+ app will appear. BLE-only sensors (temp/humidity) only upload when the phone app or a Qingping gateway syncs them.</p>
+    </div>
+    <div class="field-group">
+      <label for="qingping-app-key">App Key</label>
+      <input type="text" id="qingping-app-key" placeholder="" autocomplete="off" spellcheck="false">
+    </div>
+    <div class="field-group">
+      <label for="qingping-app-secret">App Secret</label>
+      <div class="input-row">
+        <input type="password" id="qingping-app-secret" placeholder="" autocomplete="off" spellcheck="false">
+        <button type="button" class="eye-btn" data-target="qingping-app-secret" title="Show/hide">👁</button>
+      </div>
+    </div>
+    <div class="button-row">
+      <button class="btn btn-secondary" id="qingping-test">Test Connection</button>
+      <button class="btn btn-primary" id="qingping-save">Save</button>
+      <span class="action-result" id="qingping-result"></span>
+    </div>
+  </section>
+
+  <!-- Govee IoT (optional) -->
+  <section class="card settings-card" id="govee-iot-card">
+    <div class="settings-header">
+      <h2>Govee Live Energy <span class="optional-tag">optional</span></h2>
+      <span class="status-badge" id="govee-iot-badge">…</span>
+    </div>
+    <div class="instructions">
+      <p class="note">⚠ This uses Govee's <strong>unofficial</strong> IoT channel (the same one the phone app uses) to get live watts/volts/amps from energy-monitoring plugs like the H5086. It may break if Govee changes their backend.</p>
+      <p class="note">The official Govee API (above) does <em>not</em> expose energy data — this is the only way to get it.</p>
+      <p>Setup:</p>
+      <ol>
+        <li>Enter the email and password you use in the <strong>Govee Home</strong> app</li>
+        <li>Click <strong>"Save & Send Code"</strong> — Govee will email you a verification code</li>
+        <li>Enter the code below and click <strong>"Verify"</strong></li>
+      </ol>
+    </div>
+    <div class="field-group">
+      <label for="govee-iot-email">Govee Email</label>
+      <input type="email" id="govee-iot-email" placeholder="you@example.com" autocomplete="off">
+    </div>
+    <div class="field-group">
+      <label for="govee-iot-password">Govee Password</label>
+      <div class="input-row">
+        <input type="password" id="govee-iot-password" placeholder="" autocomplete="off">
+        <button type="button" class="eye-btn" data-target="govee-iot-password" title="Show/hide">👁</button>
+      </div>
+    </div>
+    <div class="button-row">
+      <button class="btn btn-primary" id="govee-iot-save">Save & Send Code</button>
+      <span class="action-result" id="govee-iot-result"></span>
+    </div>
+    <div class="field-group" id="govee-iot-code-group" style="margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--border);">
+      <label for="govee-iot-code">Verification Code (from email)</label>
+      <div class="input-row">
+        <input type="text" id="govee-iot-code" placeholder="123456" autocomplete="off" inputmode="numeric" maxlength="6" style="max-width:120px;">
+        <button class="btn btn-primary" id="govee-iot-verify">Verify</button>
+      </div>
+      <span class="action-result" id="govee-iot-verify-result"></span>
+    </div>
+  </section>
+
+  <!-- Energy Cost Settings -->
+  <section class="card settings-card" id="energy-card">
+    <div class="settings-header">
+      <h2>Energy Cost</h2>
+    </div>
+    <div class="instructions">
+      <p>Set your electricity rates to see cost estimates on the energy chart. Peak hours apply on weekdays only; all other times use the off-peak rate.</p>
+    </div>
+    <div class="field-row">
+      <div class="field-group field-sm">
+        <label for="energy-peak-rate">Peak rate ($/kWh)</label>
+        <input type="number" id="energy-peak-rate" step="0.00001" min="0">
+      </div>
+      <div class="field-group field-sm">
+        <label for="energy-offpeak-rate">Off-peak rate ($/kWh)</label>
+        <input type="number" id="energy-offpeak-rate" step="0.00001" min="0">
+      </div>
+      <div class="field-group field-sm">
+        <label for="energy-peak-start">Peak start hour</label>
+        <input type="number" id="energy-peak-start" min="0" max="23" step="1">
+      </div>
+      <div class="field-group field-sm">
+        <label for="energy-peak-end">Peak end hour</label>
+        <input type="number" id="energy-peak-end" min="0" max="23" step="1">
+      </div>
+    </div>
+    <div class="button-row">
+      <button class="btn btn-primary" id="energy-save">Save</button>
+      <span class="action-result" id="energy-result"></span>
+    </div>
+  </section>
+
+  <!-- Advanced / Polling -->
+  <section class="card settings-card" id="polling-card">
+    <details>
+      <summary class="settings-header clickable">
+        <h2>Advanced</h2>
+      </summary>
+      <div class="instructions" style="margin-top:12px;">
+        <p>Polling intervals control how often each integration checks for new data. Lower values mean fresher data but more API calls.</p>
+      </div>
+      <div class="field-row">
+        <div class="field-group field-sm">
+          <label for="poll-govee">Govee (s)</label>
+          <input type="number" id="poll-govee" min="30" step="1">
+        </div>
+        <div class="field-group field-sm">
+          <label for="poll-qingping">Qingping (s)</label>
+          <input type="number" id="poll-qingping" min="30" step="1">
+        </div>
+        <div class="field-group field-sm">
+          <label for="poll-iot">IoT (s)</label>
+          <input type="number" id="poll-iot" min="10" step="1">
+        </div>
+        <div class="field-group field-sm">
+          <label for="poll-backfill">Backfill (days)</label>
+          <input type="number" id="poll-backfill" min="0" max="90" step="1">
+        </div>
+      </div>
+      <div class="button-row">
+        <button class="btn btn-primary" id="polling-save">Save</button>
+        <span class="action-result" id="polling-result"></span>
+      </div>
+    </details>
+  </section>
+
+</main>
+<footer>
+  <span>Home Sensors — Settings</span>
+</footer>
+<script src="/static/setup.js"></script>
+</body>
+</html>

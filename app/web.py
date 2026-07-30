@@ -1,14 +1,18 @@
 import asyncio
 import contextlib
+import logging
 import time
 from pathlib import Path
 
 from fastapi import FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
-
+from pydantic import BaseModel
 
 from . import collector, config, db
+from .env_file import mask_value, read_env, write_env
+
+log = logging.getLogger("web")
 
 STATIC_DIR = Path(__file__).resolve().parent / "static"
 
@@ -139,6 +143,163 @@ async def api_import(file: UploadFile = File(...), device_id: int = Form(...)):
         return import_csv(text, device_id)
     except ValueError as e:
         raise HTTPException(400, str(e))
+
+
+# ---------------------------------------------------------------------------
+# Settings / Setup
+# ---------------------------------------------------------------------------
+
+@app.get("/setup")
+def setup_page():
+    return FileResponse(STATIC_DIR / "setup.html")
+
+
+CREDENTIAL_FIELDS = {
+    "GOVEE_API_KEY", "QINGPING_APP_KEY", "QINGPING_APP_SECRET",
+    "GOVEE_EMAIL", "GOVEE_PASSWORD",
+}
+TUNING_FIELDS = {
+    "PEAK_RATE_PER_KWH", "OFFPEAK_RATE_PER_KWH",
+    "PEAK_START_HOUR", "PEAK_END_HOUR",
+    "GOVEE_POLL_SECONDS", "QINGPING_POLL_SECONDS",
+    "GOVEE_IOT_POLL_SECONDS", "QINGPING_BACKFILL_DAYS",
+}
+
+
+@app.get("/api/settings")
+def api_settings():
+    """Current config with secrets masked."""
+    env = read_env()
+    return {
+        "govee": {
+            "configured": bool(env.get("GOVEE_API_KEY", "").strip()),
+            "api_key_hint": mask_value("GOVEE_API_KEY",
+                                       env.get("GOVEE_API_KEY", "")),
+            "status": collector.status.get("govee", {}),
+        },
+        "qingping": {
+            "configured": bool(env.get("QINGPING_APP_KEY", "").strip()
+                               and env.get("QINGPING_APP_SECRET", "").strip()),
+            "app_key_hint": mask_value("QINGPING_APP_KEY",
+                                       env.get("QINGPING_APP_KEY", "")),
+            "app_secret_hint": mask_value("QINGPING_APP_SECRET",
+                                          env.get("QINGPING_APP_SECRET", "")),
+            "status": collector.status.get("qingping", {}),
+        },
+        "govee_iot": {
+            "configured": bool(env.get("GOVEE_EMAIL", "").strip()
+                               and env.get("GOVEE_PASSWORD", "").strip()),
+            "email": env.get("GOVEE_EMAIL", ""),  # email is not secret
+            "password_hint": mask_value("GOVEE_PASSWORD",
+                                        env.get("GOVEE_PASSWORD", "")),
+            "status": collector.status.get("govee_iot", {}),
+        },
+        "energy": {
+            "peak_rate": env.get("PEAK_RATE_PER_KWH",
+                                str(config.PEAK_RATE_PER_KWH)),
+            "offpeak_rate": env.get("OFFPEAK_RATE_PER_KWH",
+                                    str(config.OFFPEAK_RATE_PER_KWH)),
+            "peak_start_hour": env.get("PEAK_START_HOUR",
+                                        str(config.PEAK_START_HOUR)),
+            "peak_end_hour": env.get("PEAK_END_HOUR",
+                                      str(config.PEAK_END_HOUR)),
+        },
+        "polling": {
+            "govee_poll_seconds": env.get("GOVEE_POLL_SECONDS",
+                                          str(config.GOVEE_POLL_SECONDS)),
+            "qingping_poll_seconds": env.get("QINGPING_POLL_SECONDS",
+                                              str(config.QINGPING_POLL_SECONDS)),
+            "govee_iot_poll_seconds": env.get("GOVEE_IOT_POLL_SECONDS",
+                                               str(config.GOVEE_IOT_POLL_SECONDS)),
+            "qingping_backfill_days": env.get("QINGPING_BACKFILL_DAYS",
+                                               str(config.QINGPING_BACKFILL_DAYS)),
+        },
+    }
+
+
+class TestRequest(BaseModel):
+    integration: str
+    api_key: str | None = None
+    app_key: str | None = None
+    app_secret: str | None = None
+
+
+@app.post("/api/settings/test")
+async def api_settings_test(req: TestRequest):
+    """Validate credentials by making a lightweight API call."""
+    try:
+        if req.integration == "govee":
+            if not req.api_key:
+                raise HTTPException(400, "api_key is required")
+            from .govee import GoveeClient
+            client = GoveeClient(req.api_key.strip())
+            devices = await client.list_devices()
+            n = len(devices)
+            return {"ok": True, "device_count": n,
+                    "message": f"Connected — found {n} device{'s' if n != 1 else ''}"}
+
+        elif req.integration == "qingping":
+            if not req.app_key or not req.app_secret:
+                raise HTTPException(400, "app_key and app_secret are required")
+            from .qingping import QingpingClient
+            client = QingpingClient(req.app_key.strip(), req.app_secret.strip())
+            devices = await client.list_devices()
+            n = len(devices)
+            return {"ok": True, "device_count": n,
+                    "message": f"Connected — found {n} device{'s' if n != 1 else ''}"}
+
+        else:
+            raise HTTPException(400, f"Unknown integration: {req.integration}")
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        log.warning("Settings test failed for %s: %s", req.integration, e)
+        return {"ok": False, "message": f"{type(e).__name__}: {e}"}
+
+
+class SaveRequest(BaseModel):
+    updates: dict[str, str]
+
+
+@app.post("/api/settings/save")
+def api_settings_save(req: SaveRequest):
+    """Write settings to .env. Returns which fields changed."""
+    allowed = CREDENTIAL_FIELDS | TUNING_FIELDS
+    filtered = {k: v for k, v in req.updates.items() if k in allowed}
+    if not filtered:
+        raise HTTPException(400, "No recognised settings fields provided")
+    changed = write_env(filtered)
+    has_creds = bool(set(changed) & CREDENTIAL_FIELDS)
+    return {
+        "ok": True,
+        "updated": changed,
+        "restart_required": has_creds,
+    }
+
+
+class VerifyRequest(BaseModel):
+    code: str
+
+
+@app.post("/api/settings/govee-iot/verify")
+def api_govee_iot_verify(req: VerifyRequest):
+    """Complete the Govee IoT 2FA login with the emailed verification code."""
+    env = read_env()
+    email = env.get("GOVEE_EMAIL", "").strip()
+    password = env.get("GOVEE_PASSWORD", "").strip()
+    if not email or not password:
+        raise HTTPException(400, "GOVEE_EMAIL and GOVEE_PASSWORD must be saved first")
+    from .govee_iot import GoveeIoT, TwoFactorRequired
+    client = GoveeIoT(email, password, {})
+    try:
+        acct = client._login(req.code.strip() if req.code.strip() else None)
+        return {"ok": True,
+                "message": f"Login successful — account {acct['account_id']}"}
+    except TwoFactorRequired as e:
+        return {"ok": False, "two_factor": True, "message": str(e)}
+    except Exception as e:
+        return {"ok": False, "message": f"{type(e).__name__}: {e}"}
 
 
 app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")

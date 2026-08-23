@@ -158,12 +158,33 @@ CREDENTIAL_FIELDS = {
     "GOVEE_API_KEY", "QINGPING_APP_KEY", "QINGPING_APP_SECRET",
     "GOVEE_EMAIL", "GOVEE_PASSWORD",
 }
-TUNING_FIELDS = {
-    "PEAK_RATE_PER_KWH", "OFFPEAK_RATE_PER_KWH",
-    "PEAK_START_HOUR", "PEAK_END_HOUR",
+# Energy settings are read from `config` on every /api/energy request, so a
+# saved change can be applied in-process. Poll intervals are captured by the
+# collector loops at startup, so those still need a restart.
+LIVE_TUNING = {
+    "PEAK_RATE_PER_KWH": float,
+    "OFFPEAK_RATE_PER_KWH": float,
+    "PEAK_START_HOUR": int,
+    "PEAK_END_HOUR": int,
+}
+RESTART_TUNING = {
     "GOVEE_POLL_SECONDS", "QINGPING_POLL_SECONDS",
     "GOVEE_IOT_POLL_SECONDS", "QINGPING_BACKFILL_DAYS",
 }
+TUNING_FIELDS = set(LIVE_TUNING) | RESTART_TUNING
+
+
+def _validate_tuning(key: str, raw: str):
+    """Coerce and range-check one tuning value, or raise HTTPException."""
+    try:
+        value = LIVE_TUNING[key](raw)
+    except (TypeError, ValueError):
+        raise HTTPException(400, f"{key}: expected a number, got {raw!r}")
+    if key.endswith("_RATE_PER_KWH") and value < 0:
+        raise HTTPException(400, f"{key}: rate cannot be negative")
+    if key.endswith("_HOUR") and not 0 <= value <= 23:
+        raise HTTPException(400, f"{key}: hour must be between 0 and 23")
+    return value
 
 
 @app.get("/api/settings")
@@ -269,12 +290,26 @@ def api_settings_save(req: SaveRequest):
     filtered = {k: v for k, v in req.updates.items() if k in allowed}
     if not filtered:
         raise HTTPException(400, "No recognised settings fields provided")
+
+    # Validate before writing so a bad value can't land in .env
+    coerced = {k: _validate_tuning(k, v) for k, v in filtered.items()
+               if k in LIVE_TUNING}
+    start, end = coerced.get("PEAK_START_HOUR"), coerced.get("PEAK_END_HOUR")
+    if start is not None and end is not None and start == end:
+        raise HTTPException(400, "Peak start and end hour cannot be the same")
+
     changed = write_env(filtered)
-    has_creds = bool(set(changed) & CREDENTIAL_FIELDS)
+
+    # Apply energy settings immediately; /api/energy reads these per request.
+    for key, value in coerced.items():
+        if key in changed:
+            setattr(config, key, value)
+
+    needs_restart = CREDENTIAL_FIELDS | RESTART_TUNING
     return {
         "ok": True,
         "updated": changed,
-        "restart_required": has_creds,
+        "restart_required": bool(set(changed) & needs_restart),
     }
 
 

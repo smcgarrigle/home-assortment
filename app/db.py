@@ -78,13 +78,21 @@ def list_devices() -> list[dict]:
         devs = [dict(r) for r in conn.execute("SELECT * FROM devices ORDER BY id")]
         for d in devs:
             d["meta"] = json.loads(d["meta"] or "{}")
-            latest = conn.execute(
-                """SELECT metric, ts, value FROM readings r
-                   WHERE device_id=? AND ts=(SELECT MAX(ts) FROM readings
-                       WHERE device_id=r.device_id AND metric=r.metric)""",
-                (d["id"],),
-            ).fetchall()
-            d["latest"] = {r["metric"]: {"ts": r["ts"], "value": r["value"]} for r in latest}
+            # One index seek per metric: the readings PK is (device_id, metric,
+            # ts), so ORDER BY ts DESC LIMIT 1 lands straight on the newest row.
+            # A correlated MAX(ts) subquery here scans the whole device instead,
+            # which costs seconds once a device has a few hundred thousand rows.
+            metrics = [r["metric"] for r in conn.execute(
+                "SELECT DISTINCT metric FROM readings WHERE device_id=?", (d["id"],))]
+            d["latest"] = {}
+            for metric in metrics:
+                row = conn.execute(
+                    """SELECT ts, value FROM readings WHERE device_id=? AND metric=?
+                       ORDER BY ts DESC LIMIT 1""",
+                    (d["id"], metric),
+                ).fetchone()
+                if row:
+                    d["latest"][metric] = {"ts": row["ts"], "value": row["value"]}
     return devs
 
 

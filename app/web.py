@@ -77,8 +77,8 @@ def _rate_for(hour_start: int) -> float:
     from datetime import datetime
 
     d = datetime.fromtimestamp(hour_start)
-    is_peak = (d.weekday() < 5
-               and config.PEAK_START_HOUR <= d.hour < config.PEAK_END_HOUR)
+    # E-TOU-C3 prices the peak window every day, weekends included.
+    is_peak = config.PEAK_START_HOUR <= d.hour < config.PEAK_END_HOUR
     return config.PEAK_RATE_PER_KWH if is_peak else config.OFFPEAK_RATE_PER_KWH
 
 

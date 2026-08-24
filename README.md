@@ -41,6 +41,35 @@ nohup .venv/bin/python main.py >> data/server.log 2>&1 &
 (On WSL2, add `wsl.exe -d <distro> -- <path>` to Windows Task Scheduler if you
 want it to survive reboots.)
 
+## Security
+
+This is a **local-network tool with no authentication**. Anyone who can reach
+the port can view your sensor data and, via `/setup`, see which integrations
+are configured and rewrite `.env` — which means changing the credentials the
+collector uses. Secrets are masked in API responses, but the write endpoints
+are open by default.
+
+That is a reasonable trade for a dashboard on a trusted home network. It is
+not safe on a shared or public one.
+
+- **Do not port-forward this, and do not put it on a public IP.** There is no
+  login, no rate limiting, and no CSRF protection.
+- **For remote access, use a VPN or an overlay network** — Tailscale,
+  WireGuard, or similar — rather than opening a router port. This is the same
+  advice Home Assistant gives, for the same reasons.
+- **To restrict it to one machine**, set `HOST=127.0.0.1` in `.env`. The
+  default `0.0.0.0` is what makes it reachable from your phone.
+- **If others share your network**, set `SETTINGS_TOKEN` in `.env` to any
+  random string. The `/setup` save and test endpoints will then require it,
+  and the page prompts for it once per browser session. It does not protect
+  the read-only dashboard.
+- **`.env` and `data/` are gitignored** and hold your API keys, the cached
+  Govee account token, and the IoT client certificate. Keep them out of any
+  repo, backup, or screenshot you share.
+
+The Govee IoT integration stores a long-lived account token in
+`data/govee_account.json`, mode `600`. Treat that file as a password.
+
 ## What it does
 
 - **Qingping**: polls the device list every 60 s and stores every numeric
@@ -62,9 +91,9 @@ want it to survive reboots.)
   data at all.
 - **Energy cost**: the energy chart's kWh totals are also costed out at
   peak/off-peak electricity rates (`PEAK_RATE_PER_KWH`, `OFFPEAK_RATE_PER_KWH`
-  in `.env`). Peak is weekdays
-  `PEAK_START_HOUR`–`PEAK_END_HOUR` (default 4pm–9pm local time); everything
-  else is off-peak. Cost is computed per hour and rolled up, so a daily or
+  in `.env`). The peak window is `PEAK_START_HOUR`–`PEAK_END_HOUR` (default
+  4pm–9pm local time) **every day, weekends included**, matching PG&E
+  E-TOU-C3; everything else is off-peak. Cost is computed per hour and rolled up, so a daily or
   weekly bucket that spans both rates still totals correctly.
 - **Storage**: SQLite at `data/sensors.db`, one row per
   (device, metric, timestamp). Chart queries bucket-average to ≤ ~600 points.
@@ -77,7 +106,7 @@ want it to survive reboots.)
 | `app/govee_iot.py`, `app/govee_login.py` | unofficial Govee IoT channel for plug energy data |
 | `app/collector.py` | background polling loops |
 | `app/db.py` | SQLite schema and queries |
-| `app/web.py` | FastAPI routes (`/api/devices`, `/api/history`, `/api/energy`, `/api/status`) |
+| `app/web.py` | FastAPI routes (`/api/devices`, `/api/history`, `/api/energy`, `/api/status`, `/setup`) |
 | `app/static/` | dashboard (vendored Chart.js, no CDN) |
 
 ## API endpoints used

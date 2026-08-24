@@ -72,8 +72,13 @@ The Govee IoT integration stores a long-lived account token in
 
 ## What it does
 
-- **Qingping**: polls the device list every 60 s and stores every numeric
-  reading (temperature, humidity, CO₂, PM2.5, PM10, TVOC, battery, …). On
+- **Qingping**: polls the device list every 5 min (`QINGPING_POLL_SECONDS`)
+  and stores every numeric reading (temperature, humidity, CO₂, PM2.5, PM10,
+  TVOC, battery, …). The device itself only updates roughly every 5-10
+  minutes regardless of poll rate, so polling faster doesn't add resolution
+  -- it just spends more API calls landing on values that haven't changed
+  yet (the readings PK discards the resulting duplicates, so no bad data
+  results either way). On
   each startup it also backfills the last 7 days per device from the history
   API (`QINGPING_BACKFILL_DAYS`); duplicate timestamps are ignored, so
   restarts are safe.

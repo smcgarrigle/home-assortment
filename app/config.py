@@ -27,7 +27,7 @@ HOST = os.getenv("HOST", "0.0.0.0").strip()
 SETTINGS_TOKEN = os.getenv("SETTINGS_TOKEN", "").strip()
 
 GOVEE_POLL_SECONDS = int(os.getenv("GOVEE_POLL_SECONDS", "120"))
-QINGPING_POLL_SECONDS = int(os.getenv("QINGPING_POLL_SECONDS", "60"))
+QINGPING_POLL_SECONDS = int(os.getenv("QINGPING_POLL_SECONDS", "300"))
 QINGPING_BACKFILL_DAYS = int(os.getenv("QINGPING_BACKFILL_DAYS", "7"))
 
 # Electricity rates used to cost out energy_kwh readings. Peak window is

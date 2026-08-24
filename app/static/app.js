@@ -237,7 +237,9 @@ function tableView(metric, unit, series) {
 }
 
 // Remaining device (non-environmental) metrics, charted before the divider.
-const DEVICE_METRICS = ["energy_kwh", "powerSwitch"];
+// powerSwitch (on/off) is deliberately absent -- shown as the status pill
+// on each device card instead, an on/off step chart wasn't earning its section.
+const DEVICE_METRICS = ["energy_kwh"];
 // Charted after the "Environmental information" divider. brightness is
 // deliberately absent -- shown on the light's card tile, not charted.
 const ENV_METRICS = ["temperature", "humidity", "co2", "pm25", "pm10", "tvoc", "pressure"];

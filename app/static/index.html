@@ -21,15 +21,14 @@
   <a href="/setup" class="gear-btn" title="Settings">⚙</a>
   <input type="file" id="import-file" accept=".csv,text/csv" hidden>
 </header>
-<div id="loading-bar" class="loading-bar" role="progressbar"
-     aria-label="Loading dashboard data" aria-busy="false" hidden></div>
 <div id="import-panel" class="import-panel" hidden></div>
 <main>
   <section id="setup-note" class="card setup-note" hidden></section>
   <section id="cards" class="cards"></section>
+  <section id="power-chart" class="card chart-card" hidden></section>
   <section id="energy" class="card chart-card" hidden>
     <div class="energy-head">
-      <h2>Energy usage</h2>
+      <h2>Energy usage (by plug)</h2>
       <select id="energy-device" aria-label="Device"></select>
       <div class="range-picker" id="energy-bucket" role="group" aria-label="Granularity">
         <button data-bucket="hour">Hourly</button>

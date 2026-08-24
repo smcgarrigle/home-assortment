@@ -236,106 +236,111 @@ function tableView(metric, unit, series) {
   return details;
 }
 
-/* Loading bar -------------------------------------------------------------
-   Ref-counted so nested fetches (refresh awaits renderCharts) show one bar.
-   The width eases toward 92% rather than completing, because the duration is
-   not known ahead of time; finishing snaps it to 100% and fades out. */
-let loadingDepth = 0;
-let loadingHideTimer = null;
+// Remaining device (non-environmental) metrics, charted before the divider.
+const DEVICE_METRICS = ["energy_kwh", "powerSwitch"];
+// Charted after the "Environmental information" divider. brightness is
+// deliberately absent -- shown on the light's card tile, not charted.
+const ENV_METRICS = ["temperature", "humidity", "co2", "pm25", "pm10", "tvoc", "pressure"];
 
-function startLoading() {
-  if (++loadingDepth > 1) return;
-  const bar = $("#loading-bar");
-  if (!bar) return;
-  clearTimeout(loadingHideTimer);
-  bar.hidden = false;
-  bar.setAttribute("aria-busy", "true");
-  bar.style.transition = "none";
-  bar.style.width = "0%";
-  bar.style.opacity = "1";
-  void bar.offsetWidth;  // flush the reset before starting the growth
-  bar.style.transition = "width 6s cubic-bezier(.05,.7,.1,1)";
-  bar.style.width = "92%";
+async function fetchMetricSeries(metric) {
+  const withMetric = devices.filter((d) => d.latest && metric in d.latest);
+  if (!withMetric.length) return null;
+  const series = await Promise.all(
+    withMetric.map(async (d) => ({
+      dev: d,
+      name: d.name,
+      points: await getJSON(
+        `/api/history?device_id=${d.id}&metric=${metric}&hours=${rangeHours}`
+      ),
+    }))
+  );
+  const nonEmpty = series.filter((s) => s.points.length > 1);
+  return nonEmpty.length ? nonEmpty : null;
 }
 
-function endLoading() {
-  if (loadingDepth === 0) return;
-  if (--loadingDepth > 0) return;
-  const bar = $("#loading-bar");
-  if (!bar) return;
-  bar.style.transition = "width .18s ease-out, opacity .35s ease .15s";
-  bar.style.width = "100%";
-  bar.style.opacity = "0";
-  bar.setAttribute("aria-busy", "false");
-  loadingHideTimer = setTimeout(() => {
-    bar.hidden = true;
-    bar.style.width = "0%";
-  }, 600);
+function metricChartEls(metric, cfg, nonEmpty) {
+  const heading = document.createElement("h2");
+  heading.textContent = cfg.label + (cfg.unit ? ` (${cfg.unit})` : "");
+  const wrap = document.createElement("div");
+  wrap.className = "chart-wrap";
+  const canvas = document.createElement("canvas");
+  canvas.setAttribute("role", "img");
+  canvas.setAttribute("aria-label", `${cfg.label} over time`);
+  wrap.append(canvas);
+  const chart = new Chart(canvas, {
+    type: "line",
+    data: {
+      datasets: nonEmpty.map((s) => ({
+        label: s.name,
+        data: s.points.map(([ts, v]) => ({ x: ts * 1000, y: v })),
+        borderColor: seriesColor(s.dev.slot),
+        backgroundColor: seriesColor(s.dev.slot),
+        borderWidth: 2,
+        pointRadius: 0,
+        pointHoverRadius: 4,
+        stepped: !!cfg.stepped,
+        tension: 0.15,
+      })),
+    },
+    options: chartOptions(cfg.unit, nonEmpty.length, !!cfg.stepped),
+  });
+  charts.push(chart);
+  return { heading, wrap, table: tableView(metric, cfg.unit, nonEmpty) };
+}
+
+async function renderPowerChart() {
+  // All devices overlaid on one chart -- the all-up view that sits above
+  // the per-plug energy breakdown.
+  const section = $("#power-chart");
+  const metric = "power";
+  const nonEmpty = await fetchMetricSeries(metric);
+  if (!nonEmpty) { section.hidden = true; return; }
+  section.hidden = false;
+  section.innerHTML = "";
+  const { heading, wrap, table } = metricChartEls(metric, METRICS[metric], nonEmpty);
+  section.append(heading, wrap, table);
 }
 
 async function renderCharts() {
-  startLoading();
-  try {
-  const box = $("#charts");
   for (const c of charts) c.destroy();
   charts = [];
+
+  await renderPowerChart();
+
+  const box = $("#charts");
   box.innerHTML = "";
 
-  for (const [metric, cfg] of Object.entries(METRICS)) {
-    const withMetric = devices.filter((d) => d.latest && metric in d.latest);
-    if (!withMetric.length) continue;
-
-    const series = await Promise.all(
-      withMetric.map(async (d) => ({
-        dev: d,
-        name: d.name,
-        points: await getJSON(
-          `/api/history?device_id=${d.id}&metric=${metric}&hours=${rangeHours}`
-        ),
-      }))
-    );
-    const nonEmpty = series.filter((s) => s.points.length > 1);
-    if (!nonEmpty.length) continue;
-
+  for (const metric of DEVICE_METRICS) {
+    const nonEmpty = await fetchMetricSeries(metric);
+    if (!nonEmpty) continue;
     const card = document.createElement("div");
     card.className = "card chart-card";
-    card.innerHTML = `<h2>${cfg.label}${cfg.unit ? ` (${cfg.unit})` : ""}</h2>`;
-    const wrap = document.createElement("div");
-    wrap.className = "chart-wrap";
-    const canvas = document.createElement("canvas");
-    canvas.setAttribute("role", "img");
-    canvas.setAttribute("aria-label", `${cfg.label} over time`);
-    wrap.append(canvas);
-    card.append(wrap);
-    card.append(tableView(metric, cfg.unit, nonEmpty));
+    const { heading, wrap, table } = metricChartEls(metric, METRICS[metric], nonEmpty);
+    card.append(heading, wrap, table);
     box.append(card);
+  }
 
-    charts.push(
-      new Chart(canvas, {
-        type: "line",
-        data: {
-          datasets: nonEmpty.map((s) => ({
-            label: s.name,
-            data: s.points.map(([ts, v]) => ({ x: ts * 1000, y: v })),
-            borderColor: seriesColor(s.dev.slot),
-            backgroundColor: seriesColor(s.dev.slot),
-            borderWidth: 2,
-            pointRadius: 0,
-            pointHoverRadius: 4,
-            stepped: !!cfg.stepped,
-            tension: 0.15,
-          })),
-        },
-        options: chartOptions(cfg.unit, nonEmpty.length, !!cfg.stepped),
-      })
-    );
+  const envCards = [];
+  for (const metric of ENV_METRICS) {
+    const nonEmpty = await fetchMetricSeries(metric);
+    if (!nonEmpty) continue;
+    const card = document.createElement("div");
+    card.className = "card chart-card";
+    const { heading, wrap, table } = metricChartEls(metric, METRICS[metric], nonEmpty);
+    card.append(heading, wrap, table);
+    envCards.push(card);
+  }
+  if (envCards.length) {
+    const divider = document.createElement("h2");
+    divider.className = "section-divider";
+    divider.textContent = "Environmental information";
+    box.append(divider, ...envCards);
   }
 
   if (!box.children.length) {
     box.innerHTML =
       `<div class="card empty">No time-series data yet — charts appear once the collector has stored readings.</div>`;
   }
-  } finally { endLoading(); }
 }
 
 let energyChart = null;
@@ -456,7 +461,6 @@ $("#energy-device").addEventListener("change", () => {
 });
 
 async function refresh() {
-  startLoading();
   try {
     const [status, devs] = await Promise.all([
       getJSON("/api/status"),
@@ -476,8 +480,6 @@ async function refresh() {
       `Local dashboard · SQLite at data/sensors.db · refreshed ${new Date().toLocaleTimeString()}`;
   } catch (e) {
     $("#footer-note").textContent = `Refresh failed: ${e.message}`;
-  } finally {
-    endLoading();
   }
 }
 

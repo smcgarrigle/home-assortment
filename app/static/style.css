@@ -20,7 +20,6 @@
   --status-warning: #fab219;
   --status-critical: #d03b3b;
   --success-text: #006300;
-  --loading: #0ca30c;
 }
 @media (prefers-color-scheme: dark) {
   :root {
@@ -42,33 +41,7 @@
     --series-7: #9085e9;
     --series-8: #e66767;
     --success-text: #0ca30c;
-    --loading: #2ee56a;
   }
-}
-
-/* Loading bar: a dashed pixel line that lengthens while data is fetched.
-   The dash pattern is a fixed 10px background tile, so growing the element's
-   width reveals whole dashes at the leading edge rather than stretching them. */
-.loading-bar {
-  position: sticky;
-  top: 0;
-  z-index: 20;
-  height: 3px;
-  width: 0;
-  opacity: 1;
-  background-image: repeating-linear-gradient(
-      90deg,
-      var(--loading) 0 6px,
-      transparent 6px 10px);
-  background-size: 10px 100%;
-  background-position: left center;
-  background-repeat: repeat-x;
-  image-rendering: pixelated;
-  box-shadow: 0 0 6px color-mix(in srgb, var(--loading) 55%, transparent);
-  will-change: width, opacity;
-}
-@media (prefers-reduced-motion: reduce) {
-  .loading-bar { transition: opacity .2s linear !important; }
 }
 
 * { box-sizing: border-box; }
@@ -246,6 +219,17 @@ details.table-view th, details.table-view td {
 details.table-view th:first-child, details.table-view td:first-child { text-align: left; }
 
 .empty { color: var(--text-muted); padding: 32px 8px; text-align: center; }
+
+.section-divider {
+  margin: 4px 0 16px;
+  padding-top: 20px;
+  border-top: 1px solid var(--border);
+  font-size: 13px;
+  font-weight: 650;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-secondary);
+}
 
 /* ---------------------------------------------------------------------------
    Settings page

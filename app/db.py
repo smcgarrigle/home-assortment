@@ -72,6 +72,20 @@ def insert_readings(rows: list[tuple[int, str, int, float]]) -> int:
         return conn.total_changes - before
 
 
+# Loose index scan: hop metric-to-metric through the readings PK rather than
+# reading every row to find the distinct values. SELECT DISTINCT metric scans
+# the device's whole partition, which on a Pi is ~100% of this endpoint's cost.
+METRICS_SQL = """
+WITH RECURSIVE m(metric) AS (
+    SELECT MIN(metric) FROM readings WHERE device_id=:d
+    UNION ALL
+    SELECT (SELECT MIN(metric) FROM readings
+             WHERE device_id=:d AND metric > m.metric)
+      FROM m WHERE m.metric IS NOT NULL)
+SELECT metric FROM m WHERE metric IS NOT NULL
+"""
+
+
 def list_devices() -> list[dict]:
     conn = connect()
     with _lock:
@@ -82,8 +96,7 @@ def list_devices() -> list[dict]:
             # ts), so ORDER BY ts DESC LIMIT 1 lands straight on the newest row.
             # A correlated MAX(ts) subquery here scans the whole device instead,
             # which costs seconds once a device has a few hundred thousand rows.
-            metrics = [r["metric"] for r in conn.execute(
-                "SELECT DISTINCT metric FROM readings WHERE device_id=?", (d["id"],))]
+            metrics = [r["metric"] for r in conn.execute(METRICS_SQL, {"d": d["id"]})]
             d["latest"] = {}
             for metric in metrics:
                 row = conn.execute(

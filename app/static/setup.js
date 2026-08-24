@@ -9,13 +9,29 @@ async function getJSON(url) {
   return r.json();
 }
 
-async function postJSON(url, body) {
+// Held in sessionStorage so it survives navigation but not a closed tab.
+const TOKEN_KEY = "settingsToken";
+
+async function postJSON(url, body, retried = false) {
+  const headers = { "Content-Type": "application/json" };
+  const token = sessionStorage.getItem(TOKEN_KEY);
+  if (token) headers["X-Settings-Token"] = token;
+
   const r = await fetch(url, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers,
     body: JSON.stringify(body),
   });
+
+  if (r.status === 401 && !retried) {
+    const entered = window.prompt(
+      "This instance requires a settings token (SETTINGS_TOKEN in .env):", "");
+    if (!entered) throw new Error("Settings token required");
+    sessionStorage.setItem(TOKEN_KEY, entered.trim());
+    return postJSON(url, body, true);  // one retry, then surface the error
+  }
   if (!r.ok) {
+    if (r.status === 401) sessionStorage.removeItem(TOKEN_KEY);
     const err = await r.json().catch(() => ({ detail: r.statusText }));
     throw new Error(err.detail || r.statusText);
   }

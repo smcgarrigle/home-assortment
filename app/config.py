@@ -16,6 +16,16 @@ QINGPING_APP_SECRET = os.getenv("QINGPING_APP_SECRET", "").strip()
 DB_PATH = Path(os.getenv("DB_PATH", str(BASE_DIR / "data" / "sensors.db")))
 PORT = int(os.getenv("PORT", "8088"))
 
+# Interface to bind. Defaults to all interfaces so the dashboard is reachable
+# from phones and laptops on the LAN. Set to 127.0.0.1 to restrict it to this
+# machine. Do not expose either to the internet -- see the README.
+HOST = os.getenv("HOST", "0.0.0.0").strip()
+
+# Optional shared secret. When set, the settings write endpoints require an
+# X-Settings-Token header matching it. Unset (the default) leaves them open to
+# anyone who can reach the port, which is only safe on a trusted network.
+SETTINGS_TOKEN = os.getenv("SETTINGS_TOKEN", "").strip()
+
 GOVEE_POLL_SECONDS = int(os.getenv("GOVEE_POLL_SECONDS", "120"))
 QINGPING_POLL_SECONDS = int(os.getenv("QINGPING_POLL_SECONDS", "60"))
 QINGPING_BACKFILL_DAYS = int(os.getenv("QINGPING_BACKFILL_DAYS", "7"))

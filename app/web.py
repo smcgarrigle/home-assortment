@@ -1,10 +1,12 @@
 import asyncio
 import contextlib
 import logging
+import secrets
 import time
 from pathlib import Path
 
-from fastapi import FastAPI, File, Form, HTTPException, UploadFile
+from fastapi import (Depends, FastAPI, File, Form, Header, HTTPException,
+                     UploadFile)
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
@@ -149,6 +151,21 @@ async def api_import(file: UploadFile = File(...), device_id: int = Form(...)):
 # Settings / Setup
 # ---------------------------------------------------------------------------
 
+def require_settings_token(
+        x_settings_token: str | None = Header(default=None)) -> None:
+    """Gate the settings write endpoints on SETTINGS_TOKEN, when one is set.
+
+    Unset is the default and leaves them open, which is only appropriate on a
+    trusted network -- these endpoints can read and rewrite .env.
+    """
+    expected = config.SETTINGS_TOKEN
+    if not expected:
+        return
+    if not x_settings_token or not secrets.compare_digest(x_settings_token,
+                                                          expected):
+        raise HTTPException(401, "Invalid or missing settings token")
+
+
 @app.get("/setup")
 def setup_page():
     return FileResponse(STATIC_DIR / "setup.html")
@@ -215,6 +232,7 @@ def api_settings():
                                         env.get("GOVEE_PASSWORD", "")),
             "status": collector.status.get("govee_iot", {}),
         },
+        "protected": bool(config.SETTINGS_TOKEN),
         "energy": {
             "peak_rate": env.get("PEAK_RATE_PER_KWH",
                                 str(config.PEAK_RATE_PER_KWH)),
@@ -245,7 +263,7 @@ class TestRequest(BaseModel):
     app_secret: str | None = None
 
 
-@app.post("/api/settings/test")
+@app.post("/api/settings/test", dependencies=[Depends(require_settings_token)])
 async def api_settings_test(req: TestRequest):
     """Validate credentials by making a lightweight API call."""
     try:
@@ -283,7 +301,7 @@ class SaveRequest(BaseModel):
     updates: dict[str, str]
 
 
-@app.post("/api/settings/save")
+@app.post("/api/settings/save", dependencies=[Depends(require_settings_token)])
 def api_settings_save(req: SaveRequest):
     """Write settings to .env. Returns which fields changed."""
     allowed = CREDENTIAL_FIELDS | TUNING_FIELDS
@@ -317,7 +335,7 @@ class VerifyRequest(BaseModel):
     code: str
 
 
-@app.post("/api/settings/govee-iot/verify")
+@app.post("/api/settings/govee-iot/verify", dependencies=[Depends(require_settings_token)])
 def api_govee_iot_verify(req: VerifyRequest):
     """Complete the Govee IoT 2FA login with the emailed verification code."""
     env = read_env()

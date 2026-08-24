@@ -9,7 +9,7 @@ EXAMPLE_PATH = config.BASE_DIR / ".env.example"
 
 # Fields that contain secrets and should be masked in API responses
 SECRET_FIELDS = {"GOVEE_API_KEY", "QINGPING_APP_KEY", "QINGPING_APP_SECRET",
-                 "GOVEE_PASSWORD"}
+                 "GOVEE_PASSWORD", "SETTINGS_TOKEN"}
 
 
 def _parse_lines(path: Path) -> list[str]:

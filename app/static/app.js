@@ -236,7 +236,46 @@ function tableView(metric, unit, series) {
   return details;
 }
 
+/* Loading bar -------------------------------------------------------------
+   Ref-counted so nested fetches (refresh awaits renderCharts) show one bar.
+   The width eases toward 92% rather than completing, because the duration is
+   not known ahead of time; finishing snaps it to 100% and fades out. */
+let loadingDepth = 0;
+let loadingHideTimer = null;
+
+function startLoading() {
+  if (++loadingDepth > 1) return;
+  const bar = $("#loading-bar");
+  if (!bar) return;
+  clearTimeout(loadingHideTimer);
+  bar.hidden = false;
+  bar.setAttribute("aria-busy", "true");
+  bar.style.transition = "none";
+  bar.style.width = "0%";
+  bar.style.opacity = "1";
+  void bar.offsetWidth;  // flush the reset before starting the growth
+  bar.style.transition = "width 6s cubic-bezier(.05,.7,.1,1)";
+  bar.style.width = "92%";
+}
+
+function endLoading() {
+  if (loadingDepth === 0) return;
+  if (--loadingDepth > 0) return;
+  const bar = $("#loading-bar");
+  if (!bar) return;
+  bar.style.transition = "width .18s ease-out, opacity .35s ease .15s";
+  bar.style.width = "100%";
+  bar.style.opacity = "0";
+  bar.setAttribute("aria-busy", "false");
+  loadingHideTimer = setTimeout(() => {
+    bar.hidden = true;
+    bar.style.width = "0%";
+  }, 600);
+}
+
 async function renderCharts() {
+  startLoading();
+  try {
   const box = $("#charts");
   for (const c of charts) c.destroy();
   charts = [];
@@ -296,6 +335,7 @@ async function renderCharts() {
     box.innerHTML =
       `<div class="card empty">No time-series data yet — charts appear once the collector has stored readings.</div>`;
   }
+  } finally { endLoading(); }
 }
 
 let energyChart = null;
@@ -416,6 +456,7 @@ $("#energy-device").addEventListener("change", () => {
 });
 
 async function refresh() {
+  startLoading();
   try {
     const [status, devs] = await Promise.all([
       getJSON("/api/status"),
@@ -435,6 +476,8 @@ async function refresh() {
       `Local dashboard · SQLite at data/sensors.db · refreshed ${new Date().toLocaleTimeString()}`;
   } catch (e) {
     $("#footer-note").textContent = `Refresh failed: ${e.message}`;
+  } finally {
+    endLoading();
   }
 }
 

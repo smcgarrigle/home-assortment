@@ -102,6 +102,13 @@ The Govee IoT integration stores a long-lived account token in
   weekly bucket that spans both rates still totals correctly.
 - **Storage**: SQLite at `data/sensors.db`, one row per
   (device, metric, timestamp). Chart queries bucket-average to ≤ ~600 points.
+- **Dashboard layout**: device cards, then a **Power draw** chart (every
+  plug overlaid on one chart), then **Energy usage (by plug)** — all
+  devices, then broken down by one. An **Environmental information**
+  divider follows, then the Qingping charts (temperature, humidity, CO₂,
+  PM2.5, PM10, TVOC, pressure). Metrics that are just a live value on a
+  device card — brightness, on/off — aren't charted separately. The
+  24h/7d/30d/90d range picker applies to every chart at once.
 
 ## Layout
 

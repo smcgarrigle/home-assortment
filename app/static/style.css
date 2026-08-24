@@ -108,12 +108,16 @@ footer { padding: 12px 24px 24px; color: var(--text-muted); font-size: 12px; }
   border: 1px solid var(--border);
   border-radius: 10px;
   background: var(--surface-1);
-  display: flex;
   align-items: center;
   gap: 12px;
   font-size: 13px;
   color: var(--text-secondary);
 }
+/* display:flex has to be conditional on :not([hidden]) -- an unconditional
+   flex here has equal specificity to the browser's [hidden]{display:none}
+   default and, as an author rule, wins the tie, so the panel would render
+   even while the hidden attribute is set. */
+.import-panel:not([hidden]) { display: flex; }
 .import-panel select {
   font: inherit;
   padding: 4px 8px;

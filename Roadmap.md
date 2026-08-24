@@ -82,6 +82,43 @@ Combined bill $139.15 for 275.335 kWh = 50.54c/kWh all-in average.
 
 ---
 
+## Database growth on the Pi
+
+Not urgent -- measured, not guessed, and the numbers say this is not the
+thing that will actually cause trouble.
+
+From the live database (2026-08-23): 2,459,103 rows, 65.1 MB, steady state
+~78,000 rows/day for the last two weeks (26.5 bytes/row measured from the
+file). That is:
+
+  ~2.1 MB/day  ~62 MB/month  ~0.75 GB/year
+
+At under 1 GB/year, even a small SD card would take well over a decade to
+fill from this alone. Exact headroom on the Pi's card is still unconfirmed
+(`df -h /` was not run against it -- SSH from WSL2 to the Pi is still the
+broken path noted below), but no plausible card size makes this a near-term
+problem.
+
+What actually threatens a Pi Zero 2 W, roughly in order of likely arrival:
+
+1. **SD card write wear**, not capacity. SQLite's WAL mode does frequent
+   small writes; consumer microSD endurance is typically rated in the tens
+   of TB total-bytes-written. Nowhere close at ~2 MB/day of new data, but
+   this is the mechanism that actually kills Pi SD cards over a multi-year
+   horizon -- not running out of space.
+2. **RAM** -- 415 MB total. Already mitigated with a 1GB swapfile added
+   during the install.
+3. **Query cost scaling with row count.** This already happened once:
+   `/api/devices` degraded to ~22s as the table grew, fixed in 39ff80f and
+   367032a. Any future query added without checking its plan against a
+   multi-million-row table is the more realistic risk, not disk space.
+
+If this ever needs attention: a periodic `VACUUM`, or a retention policy
+(downsample/drop raw rows past N months), would be the fix. Optional for
+now given the growth rate above.
+
+---
+
 ## Pending from the Raspberry Pi migration
 
 - **Deploy the `list_devices()` query fix.** `app/db.py` was changed to seek to

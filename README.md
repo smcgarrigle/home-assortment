@@ -6,6 +6,8 @@ local SQLite database; a FastAPI app serves a chart dashboard at
 <http://localhost:8088>. No Home Assistant, no external services beyond the
 two vendor APIs.
 
+![Dashboard screenshot](docs/dashboard.png)
+
 ## 1. Get API credentials
 
 **Govee** — in the Govee Home app: **My Profile → Settings → Apply for API

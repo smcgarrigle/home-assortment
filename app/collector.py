@@ -17,6 +17,8 @@ status: dict = {
                  "last_success": None, "last_error": None, "device_count": 0},
     "govee_iot": {"configured": bool(config.GOVEE_EMAIL and config.GOVEE_PASSWORD),
                   "connected": False, "last_success": None, "last_error": None},
+    "pirate_weather": {"configured": bool(config.PIRATE_WEATHER_API_KEY and config.WEATHER_ZIP_CODE),
+                       "last_success": None, "last_error": None},
 }
 
 govee_client: GoveeClient | None = None
@@ -137,4 +139,5 @@ def start(loop: asyncio.AbstractEventLoop) -> list[asyncio.Task]:
         from .govee_iot import GoveeIoT
         GoveeIoT(config.GOVEE_EMAIL, config.GOVEE_PASSWORD,
                  status["govee_iot"]).start()
-    return [loop.create_task(qingping_loop()), loop.create_task(govee_loop())]
+    from .pirate_weather import poll_loop as pirate_weather_loop
+    return [loop.create_task(qingping_loop()), loop.create_task(govee_loop()), loop.create_task(pirate_weather_loop())]

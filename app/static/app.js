@@ -9,6 +9,8 @@ const METRICS = {
   pm10:        { label: "PM10", unit: "µg/m³", decimals: 0 },
   tvoc:        { label: "TVOC", unit: "ppb", decimals: 0 },
   pressure:    { label: "Pressure", unit: "hPa", decimals: 1 },
+  windSpeed:   { label: "Wind Speed", unit: "m/s", decimals: 1 },
+  dewPoint:    { label: "Dew Point", unit: "°C", decimals: 1 },
   power:       { label: "Power draw", unit: "W", decimals: 1 },
   energy_kwh:  { label: "Energy", unit: "kWh", decimals: 3 },
   brightness:  { label: "Brightness", unit: "%", decimals: 0 },
@@ -242,7 +244,7 @@ function tableView(metric, unit, series) {
 const DEVICE_METRICS = ["energy_kwh"];
 // Charted after the "Environmental information" divider. brightness is
 // deliberately absent -- shown on the light's card tile, not charted.
-const ENV_METRICS = ["temperature", "humidity", "co2", "pm25", "pm10", "tvoc", "pressure"];
+const ENV_METRICS = ["temperature", "humidity", "co2", "pm25", "pm10", "tvoc", "pressure", "windSpeed", "dewPoint"];
 
 async function fetchMetricSeries(metric) {
   const withMetric = devices.filter((d) => d.latest && metric in d.latest);

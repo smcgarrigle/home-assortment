@@ -82,6 +82,36 @@
     </div>
   </section>
 
+  <!-- Pirate Weather -->
+  <section class="card settings-card" id="pirate-weather-card">
+    <div class="settings-header">
+      <h2>Pirate Weather (Outdoor)</h2>
+      <span class="status-badge" id="pirate-weather-badge">…</span>
+    </div>
+    <div class="instructions">
+      <p>Get hyper-local outdoor weather to compare against your indoor sensors.</p>
+      <ol>
+        <li>Get a free API key at <a href="https://pirateweather.net" target="_blank" rel="noopener">pirateweather.net</a></li>
+        <li>Enter your API Key and US ZIP code below</li>
+      </ol>
+    </div>
+    <div class="field-group">
+      <label for="pirate-weather-api-key">API Key</label>
+      <div class="input-row">
+        <input type="password" id="pirate-weather-api-key" placeholder="e.g. abcdef1234567890" autocomplete="off" spellcheck="false">
+        <button type="button" class="eye-btn" data-target="pirate-weather-api-key" title="Show/hide">👁</button>
+      </div>
+    </div>
+    <div class="field-group">
+      <label for="weather-zip-code">US ZIP Code</label>
+      <input type="text" id="weather-zip-code" placeholder="e.g. 90210" autocomplete="off" spellcheck="false">
+    </div>
+    <div class="button-row">
+      <button class="btn btn-primary" id="pirate-weather-save">Save</button>
+      <span class="action-result" id="pirate-weather-result"></span>
+    </div>
+  </section>
+
   <!-- Govee IoT (optional) -->
   <section class="card settings-card" id="govee-iot-card">
     <div class="settings-header">
@@ -180,6 +210,10 @@
         <div class="field-group field-sm">
           <label for="poll-backfill">Backfill (days)</label>
           <input type="number" id="poll-backfill" min="0" max="90" step="1">
+        </div>
+        <div class="field-group field-sm">
+          <label for="poll-weather">Weather (s)</label>
+          <input type="number" id="poll-weather" min="60" step="1">
         </div>
       </div>
       <div class="button-row">

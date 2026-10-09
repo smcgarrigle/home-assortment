@@ -173,7 +173,7 @@ def setup_page():
 
 CREDENTIAL_FIELDS = {
     "GOVEE_API_KEY", "QINGPING_APP_KEY", "QINGPING_APP_SECRET",
-    "GOVEE_EMAIL", "GOVEE_PASSWORD",
+    "GOVEE_EMAIL", "GOVEE_PASSWORD", "PIRATE_WEATHER_API_KEY",
 }
 # Energy settings are read from `config` on every /api/energy request, so a
 # saved change can be applied in-process. Poll intervals are captured by the
@@ -187,6 +187,7 @@ LIVE_TUNING = {
 RESTART_TUNING = {
     "GOVEE_POLL_SECONDS", "QINGPING_POLL_SECONDS",
     "GOVEE_IOT_POLL_SECONDS", "QINGPING_BACKFILL_DAYS",
+    "WEATHER_POLL_SECONDS", "WEATHER_ZIP_CODE",
 }
 TUNING_FIELDS = set(LIVE_TUNING) | RESTART_TUNING
 
@@ -232,6 +233,14 @@ def api_settings():
                                         env.get("GOVEE_PASSWORD", "")),
             "status": collector.status.get("govee_iot", {}),
         },
+        "pirate_weather": {
+            "configured": bool(env.get("PIRATE_WEATHER_API_KEY", "").strip()
+                               and env.get("WEATHER_ZIP_CODE", "").strip()),
+            "api_key_hint": mask_value("PIRATE_WEATHER_API_KEY",
+                                       env.get("PIRATE_WEATHER_API_KEY", "")),
+            "zip_code": env.get("WEATHER_ZIP_CODE", ""),
+            "status": collector.status.get("pirate_weather", {}),
+        },
         "protected": bool(config.SETTINGS_TOKEN),
         "energy": {
             "peak_rate": env.get("PEAK_RATE_PER_KWH",
@@ -252,6 +261,8 @@ def api_settings():
                                                str(config.GOVEE_IOT_POLL_SECONDS)),
             "qingping_backfill_days": env.get("QINGPING_BACKFILL_DAYS",
                                                str(config.QINGPING_BACKFILL_DAYS)),
+            "weather_poll_seconds": env.get("WEATHER_POLL_SECONDS",
+                                             str(config.WEATHER_POLL_SECONDS)),
         },
     }
 

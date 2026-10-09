@@ -30,6 +30,10 @@ GOVEE_POLL_SECONDS = int(os.getenv("GOVEE_POLL_SECONDS", "120"))
 QINGPING_POLL_SECONDS = int(os.getenv("QINGPING_POLL_SECONDS", "300"))
 QINGPING_BACKFILL_DAYS = int(os.getenv("QINGPING_BACKFILL_DAYS", "7"))
 
+PIRATE_WEATHER_API_KEY = os.getenv("PIRATE_WEATHER_API_KEY", "").strip()
+WEATHER_ZIP_CODE = os.getenv("WEATHER_ZIP_CODE", "").strip()
+WEATHER_POLL_SECONDS = int(os.getenv("WEATHER_POLL_SECONDS", "1800"))
+
 # Electricity rates used to cost out energy_kwh readings. Peak window is
 # PEAK_START_HOUR..PEAK_END_HOUR (local time) every day, weekends included,
 # matching PG&E E-TOU-C3; everything else is off-peak.

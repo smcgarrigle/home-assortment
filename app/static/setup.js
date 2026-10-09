@@ -84,6 +84,17 @@ async function loadSettings() {
     if (s.govee_iot.email) $("#govee-iot-email").placeholder = s.govee_iot.email;
     if (s.govee_iot.password_hint) $("#govee-iot-password").placeholder = s.govee_iot.password_hint;
 
+    // Pirate Weather
+    if (s.pirate_weather) {
+      if (s.pirate_weather.api_key_hint) {
+        $("#pirate-weather-api-key").placeholder = s.pirate_weather.api_key_hint;
+      }
+      if (s.pirate_weather.zip_code) {
+        $("#weather-zip-code").value = s.pirate_weather.zip_code;
+      }
+      renderBadge($("#pirate-weather-badge"), s.pirate_weather.configured, s.pirate_weather.status);
+    }
+
     // Energy
     $("#energy-peak-rate").value = s.energy.peak_rate;
     $("#energy-offpeak-rate").value = s.energy.offpeak_rate;
@@ -95,6 +106,7 @@ async function loadSettings() {
     $("#poll-qingping").value = s.polling.qingping_poll_seconds;
     $("#poll-iot").value = s.polling.govee_iot_poll_seconds;
     $("#poll-backfill").value = s.polling.qingping_backfill_days;
+    if ($("#poll-weather")) $("#poll-weather").value = s.polling.weather_poll_seconds || 1800;
 
   } catch (e) {
     console.error("Failed to load settings:", e);
@@ -292,6 +304,7 @@ $("#polling-save").addEventListener("click", async () => {
         QINGPING_POLL_SECONDS: $("#poll-qingping").value,
         GOVEE_IOT_POLL_SECONDS: $("#poll-iot").value,
         QINGPING_BACKFILL_DAYS: $("#poll-backfill").value,
+        WEATHER_POLL_SECONDS: $("#poll-weather").value,
       },
     });
     showResult($("#polling-result"), true,
@@ -307,3 +320,27 @@ $("#polling-save").addEventListener("click", async () => {
 // ---------------------------------------------------------------------------
 
 loadSettings();
+
+// ---------------------------------------------------------------------------
+// Pirate Weather
+// ---------------------------------------------------------------------------
+
+$("#pirate-weather-save").addEventListener("click", async () => {
+  const key = $("#pirate-weather-api-key").value.trim();
+  const zip = $("#weather-zip-code").value.trim();
+  if (!key || !zip) {
+    showResult($("#pirate-weather-result"), false, "Enter both API Key and ZIP Code");
+    return;
+  }
+  try {
+    const r = await postJSON("/api/settings/save", {
+      updates: { PIRATE_WEATHER_API_KEY: key, WEATHER_ZIP_CODE: zip },
+    });
+    showResult($("#pirate-weather-result"), true,
+      r.restart_required ? "Saved — restart to apply" : "Saved");
+    if (r.restart_required) $("#restart-banner").hidden = false;
+    loadSettings();
+  } catch (e) {
+    showResult($("#pirate-weather-result"), false, e.message);
+  }
+});

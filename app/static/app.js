@@ -290,12 +290,11 @@ function metricChartEls(metric, cfg, nonEmpty) {
   return { heading, wrap, table: tableView(metric, cfg.unit, nonEmpty) };
 }
 
-async function renderPowerChart() {
+function renderPowerChart(nonEmpty) {
   // All devices overlaid on one chart -- the all-up view that sits above
   // the per-plug energy breakdown.
   const section = $("#power-chart");
   const metric = "power";
-  const nonEmpty = await fetchMetricSeries(metric);
   if (!nonEmpty) { section.hidden = true; return; }
   section.hidden = false;
   section.innerHTML = "";
@@ -304,16 +303,26 @@ async function renderPowerChart() {
 }
 
 async function renderCharts() {
+  // Fetch all series data concurrently before tearing down the old charts.
+  // This prevents the UI from going blank while waiting for network requests.
+  const [powerData, ...allData] = await Promise.all([
+    fetchMetricSeries("power"),
+    ...DEVICE_METRICS.map(async m => ({ metric: m, nonEmpty: await fetchMetricSeries(m) })),
+    ...ENV_METRICS.map(async m => ({ metric: m, nonEmpty: await fetchMetricSeries(m) }))
+  ]);
+
   for (const c of charts) c.destroy();
   charts = [];
 
-  await renderPowerChart();
+  renderPowerChart(powerData);
 
   const box = $("#charts");
   box.innerHTML = "";
 
-  for (const metric of DEVICE_METRICS) {
-    const nonEmpty = await fetchMetricSeries(metric);
+  const deviceData = allData.slice(0, DEVICE_METRICS.length);
+  const envData = allData.slice(DEVICE_METRICS.length);
+
+  for (const { metric, nonEmpty } of deviceData) {
     if (!nonEmpty) continue;
     const card = document.createElement("div");
     card.className = "card chart-card";
@@ -323,8 +332,7 @@ async function renderCharts() {
   }
 
   const envCards = [];
-  for (const metric of ENV_METRICS) {
-    const nonEmpty = await fetchMetricSeries(metric);
+  for (const { metric, nonEmpty } of envData) {
     if (!nonEmpty) continue;
     const card = document.createElement("div");
     card.className = "card chart-card";
